@@ -82,11 +82,12 @@ footer a { color: var(--yellow); }
 .pill.bad { background: var(--bad-soft); color: var(--bad); }
 
 /* Sign-in */
-.signin-wrap { display: grid; gap: 16px; max-width: 880px; margin: 0 auto; }
+.signin-wrap { display: grid; gap: 16px; max-width: 600px; margin: 0 auto; }
 .signin-wrap.narrow { max-width: 560px; }
-.signin-shell { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); overflow: hidden; }
+/* Blue title block on top, sign-in form below. */
+.signin-shell { display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
 .signin-shell.single { grid-template-columns: minmax(0, 1fr); border-top: 4px solid var(--navy); }
-.signin-aside { background: var(--navy); color: #fff; padding: 40px 32px; display: grid; gap: 16px; align-content: start; }
+.signin-aside { background: var(--navy); color: #fff; padding: 28px 32px; display: grid; gap: 14px; align-content: start; }
 .signin-aside h1 { font-size: 32px; color: #fff; }
 .signin-aside .rule { width: 40px; height: 2px; background: var(--yellow); }
 .signin { padding: 32px; display: grid; gap: 16px; }
