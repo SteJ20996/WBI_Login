@@ -31,14 +31,20 @@ The pieces: **Cloudflare Pages** serves the site and runs the sign-in code, **D1
      GitHub as `SteJ20996` in that browser window, and install the Cloudflare app on that account with
      access to `WBI_Login` only.
 
-## Step 0.5. Turn on the Workers Paid plan (required, $5/month)
+## Step 0.5. Workers plan: start on Free
 
-In the Cloudflare account: *Workers & Pages* → *Plans* (or *Compute* → *Workers plans*) → **Workers Paid**.
+The portal launches on the **Workers Free** plan. Nothing to buy now.
 
-Why it is required: checking an agent password safely takes more processing time than the free plan
-allows per request (10 ms), so agent sign-in can fail with error 1102 on the free plan. The paid plan also
-lets D1 restore the database to any minute in the last 30 days (7 days on the free plan), and daily
-database limits no longer stop the site.
+One thing to watch: on Free, each request may use at most 10 ms of processing (CPU) time. Checking an
+agent password safely is the one heavy step (agent sign-in, first-time setup, password change), and it
+may go over that limit. Step 7 includes a quick test. If it fails, switch to **Workers Paid** ($5/month):
+*Workers & Pages* → *Plans* (or *Compute* → *Workers plans*) → *Workers Paid*. No code change is needed.
+
+What else Free means for this portal:
+- D1 can restore the database to any minute in the last **7 days** (30 days on Paid). Use
+  **Download CSV** in the portal regularly as an extra backup.
+- Daily allowances (100,000 requests; 5 million database rows read and 100,000 written) are far above
+  what a small client list uses.
 
 ## Step 1. Put the domain on Cloudflare
 
@@ -120,6 +126,9 @@ Then apply them: *Deployments* → the latest Production deployment → *⋯* �
 2. Enter the `SETUP_TOKEN` from Step 5, the agent's name, email, and a password of at least 12 characters.
 3. Sign in with that email and password.
 4. The setup page closes for good once an account exists. You may now delete the `SETUP_TOKEN` secret.
+5. **Free-plan check:** sign out and sign in again as the agent 4 or 5 times, and once use
+   *Change password*. If any attempt shows **Error 1102** ("Worker exceeded resource limits") or
+   "Sign-in is temporarily unavailable", switch to Workers Paid (Step 0.5) and try again.
 
 The agent can change the password any time with *Change password* in the portal.
 
@@ -162,10 +171,13 @@ the same way it was done for getwbi.net, and use that address in `NOTIFY_FROM`.)
 - [ ] A deactivated client cannot sign in.
 - [ ] Phone check: both pages look right.
 - [ ] `https://wealthbuilderins.com/robots.txt` shows `Disallow: /` (the portal stays out of Google).
+- [ ] Agent sign-in works every time on the Free plan (Step 7, point 5).
 - [ ] Delete the test client.
 
 ## Recommended
 
+- Move to **Workers Paid ($5/month)** later if agent sign-in ever fails, or when a 30-day database
+  restore window is wanted.
 - Keep the Cloudflare account and GitHub organization protected with 2-step verification.
 - Never add `TURNSTILE_TEST_BYPASS` in the Cloudflare dashboard. It is only for testing on a computer.
 - Optional extra shield: *Security* → *WAF* → *Rate limiting rules* → limit `POST` requests to
@@ -179,6 +191,6 @@ the same way it was done for getwbi.net, and use that address in `NOTIFY_FROM`.)
 | "Please complete the verification again" every time | Turnstile widget hostnames include the exact address in the browser bar |
 | "Sign-in is not available yet" under the form | `TURNSTILE_SITE_KEY` is missing |
 | Deployment fails mentioning D1 / database | `database_id` in `wrangler.toml` matches the D1 database ID |
-| Agent sign-in shows error 1102 or "unavailable" | Workers Paid plan is active (Step 0.5) |
+| Agent sign-in shows error 1102 or "unavailable" | The Free plan's 10 ms CPU limit was reached: switch to Workers Paid (Step 0.5). To confirm first, look for *Exceeded CPU Time Limits* in the Pages project's *Functions* / *Metrics* view, or for `exceededCpu` in *Real-time logs* |
 | `/agent/` says "Almost ready" | `SETUP_TOKEN` secret missing; add it and retry the deployment |
 | Error details | Pages project → *Deployments* → a deployment → *Functions* → *Real-time logs* (*Begin log stream*) |

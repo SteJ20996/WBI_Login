@@ -80,7 +80,7 @@
       return "Too many attempts. Try again in " + min + " minute" + (min === 1 ? "" : "s") + ".";
     }
     if (d.error === "verification") return "Please complete the verification again.";
-    if (d.error === "unavailable" || res.status === 503) return "Sign-in is temporarily unavailable. Please try again later.";
+    if (d.error === "unavailable" || res.status >= 500) return "Sign-in is temporarily unavailable. Please try again later.";
     if (res.status === 0) return "No connection. Check your internet and try again.";
     return "We couldn't sign you in. Check the " + what + ", then try again.";
   };
