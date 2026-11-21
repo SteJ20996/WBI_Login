@@ -1,0 +1,15 @@
+# Cloudflare Pages project for wealthbuilderins.com.
+# Static pages are served from ./public; the API lives in ./functions (Pages Functions).
+# Secrets (Turnstile keys, Resend key, setup token) are NOT stored here. Add them in the
+# Cloudflare dashboard: Pages project > Settings > Variables and Secrets. See docs/DEPLOY.md.
+
+name = "wbi-login"
+pages_build_output_dir = "./public"
+compatibility_date = "2025-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wbi-login"
+# Replace with the Database ID shown in Cloudflare > Storage & Databases > D1 > wbi-login.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

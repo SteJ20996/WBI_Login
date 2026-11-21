@@ -1,0 +1,19 @@
+{
+  "name": "wbi-login",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WBI Client Portal: client account sign-in and the Agent/Financial Specialist back office, on Cloudflare Pages + D1.",
+  "scripts": {
+    "dev": "wrangler pages dev",
+    "db:migrate:local": "wrangler d1 migrations apply wbi-login --local",
+    "db:migrate:remote": "wrangler d1 migrations apply wbi-login --remote",
+    "typecheck": "tsc --noEmit",
+    "test": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "playwright-core": "^1.65.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.166.0"
+  }
+}
