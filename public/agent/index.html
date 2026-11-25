@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>WBI Agent/Financial Specialist Portal</title>
+<link rel="icon" href="/assets/wbi-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/portal.css">
+<script src="/assets/common.js" defer></script>
+<script src="/assets/agent.js" defer></script>
+</head>
+<body>
+<header class="header">
+  <div class="header-inner">
+    <div class="brand"><span class="logo"><img src="/assets/wbi-logo.png" width="720" height="190" alt="Wealth Builder &amp; Insurances"></span><span class="brand-divider" aria-hidden="true"></span><span class="brand-sub">Agent/Financial Specialist Portal</span></div>
+    <span class="secure"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 1a3.5 3.5 0 0 0-3.5 3.5V6H4a1.5 1.5 0 0 0-1.5 1.5v6A1.5 1.5 0 0 0 4 15h8a1.5 1.5 0 0 0 1.5-1.5v-6A1.5 1.5 0 0 0 12 6h-.5V4.5A3.5 3.5 0 0 0 8 1Zm-2 5V4.5a2 2 0 1 1 4 0V6H6Z"/></svg><span>Secure Agent/Financial Specialist access</span></span>
+  </div>
+</header>
+
+<main id="app"><p class="loading">Loading…</p></main>
+
+<footer><div class="foot-inner"><img class="foot-logo" src="/assets/wbi-logo.png" width="720" height="190" alt="Wealth Builder &amp; Insurances"><div class="foot-text"><div><strong>Wealth Builder &amp; Insurances</strong><br>555 Anton Blvd, Ste. 150, Costa Mesa, CA 92626</div><div>This portal is for WBI clients only. Public website: <a href="https://getwbi.net/" target="_blank" rel="noopener">getwbi.net</a></div><div>© <span id="year">2026</span> Wealth Builder &amp; Insurances</div></div></div></footer>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<dialog id="acct-dlg" aria-labelledby="acct-title">
+  <form class="dlg" id="acct-form" method="dialog" novalidate>
+    <h2 id="acct-title">Edit account</h2>
+    <div class="form-grid">
+      <div class="field"><label for="af-no">Account #</label><input id="af-no" autocomplete="off" spellcheck="false" placeholder="ABC-12345678-01" maxlength="15"></div>
+      <div class="field"><label for="af-start">Start Date</label><input id="af-start" type="date"></div>
+      <div class="field"><label for="af-name">Client name</label><input id="af-name" autocomplete="off" maxlength="120"></div>
+      <div class="field"><label for="af-email">Email</label><input id="af-email" type="email" autocomplete="off"></div>
+      <div class="field"><label for="af-dep">Total Deposit (USD)</label><input id="af-dep" inputmode="decimal" autocomplete="off"></div>
+      <div class="field"><label for="af-int">Interest Earned (USD)</label><input id="af-int" inputmode="decimal" autocomplete="off"></div>
+      <div class="field"><label for="af-bal">Total Balance (calculated)</label><input id="af-bal" readonly tabindex="-1"></div>
+      <div class="field end"><label class="switch" for="af-active"><input id="af-active" type="checkbox">Can sign in</label></div>
+    </div>
+    <p class="muted small" id="af-last"></p>
+    <div class="alert bad" id="af-err" role="alert" hidden></div>
+    <div class="dlg-actions">
+      <button type="button" class="btn danger small" id="af-delete">Delete account</button>
+      <div class="right">
+        <button type="button" class="btn secondary" id="af-cancel">Cancel</button>
+        <button type="submit" class="btn" id="af-save">Save</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="import-dlg" aria-labelledby="import-title">
+  <div class="dlg">
+    <h2 id="import-title">Import accounts from a CSV file</h2>
+    <p class="small muted">Columns: Account #, Client name, Email, Start date, Total deposit, Interest earned, and optionally Status (Active or Deactivated; if left empty, an existing account keeps its status and a new one starts Active). An account # that already exists is updated; a new one is added. If any row has a problem, nothing is saved.</p>
+    <div><button type="button" class="btn secondary small" id="im-template">Download a blank template</button></div>
+    <div class="field"><label for="im-file">CSV file</label><input id="im-file" type="file" accept=".csv,text/csv"></div>
+    <p class="small" id="im-summary"></p>
+    <div class="alert bad" id="im-err" role="alert" hidden></div>
+    <div class="alert good" id="im-ok" hidden></div>
+    <div class="dlg-actions">
+      <div class="right">
+        <button type="button" class="btn secondary" id="im-close">Close</button>
+        <button type="button" class="btn" id="im-go" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="pw-dlg" aria-labelledby="pw-title">
+  <form class="dlg" id="pw-form" method="dialog" novalidate>
+    <h2 id="pw-title">Change password</h2>
+    <div class="field"><label for="pw-current">Current password</label><input id="pw-current" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="pw-new">New password (at least 12 characters)</label><input id="pw-new" type="password" autocomplete="new-password"></div>
+    <div class="field"><label for="pw-again">New password again</label><input id="pw-again" type="password" autocomplete="new-password"></div>
+    <div class="alert bad" id="pw-err" role="alert" hidden></div>
+    <div class="dlg-actions">
+      <div class="right">
+        <button type="button" class="btn secondary" id="pw-cancel">Cancel</button>
+        <button type="submit" class="btn">Change password</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+</body>
+</html>

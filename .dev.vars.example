@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local testing only (never commit .dev.vars).
+# With TURNSTILE_TEST_BYPASS=true the human check is skipped, but ONLY on localhost / 127.0.0.1.
+TURNSTILE_TEST_BYPASS=true
+SETUP_TOKEN=local-setup-token-change-me
