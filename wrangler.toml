@@ -11,5 +11,5 @@ compatibility_date = "2025-09-01"
 binding = "DB"
 database_name = "wbi-login"
 # Replace with the Database ID shown in Cloudflare > Storage & Databases > D1 > wbi-login.
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "cbfaa65b-7054-456d-a5f5-5aa29d3088d8"
 migrations_dir = "migrations"
