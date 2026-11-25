@@ -1,5 +1,19 @@
 import type { Env } from './types';
 
+/** Sends a plain-text email through Resend. Does nothing when Resend is not set up. */
+export async function sendNotice(env: Env, to: string, subject: string, text: string): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.NOTIFY_FROM) return;
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: env.NOTIFY_FROM, to: [to], subject, text }),
+    });
+  } catch {
+    // A failed notice must not block the action.
+  }
+}
+
 /** Sends a short sign-in notice through Resend. Does nothing when Resend is not set up. */
 export async function sendSignInNotice(env: Env, to: string, portal: 'Client Portal' | 'Agent/Financial Specialist Portal'): Promise<void> {
   if (!env.RESEND_API_KEY || !env.NOTIFY_FROM) return;

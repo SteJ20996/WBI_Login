@@ -14,11 +14,30 @@ export const SCHEMA: string[] = [
   "CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, agent_id INTEGER, action TEXT NOT NULL, detail TEXT NOT NULL);",
 ];
 
+/**
+ * Version 2 (migrations/0002_agent_roles.sql): agents get a role.
+ * 'owner' = Main account (can manage other Agent/Financial Specialist accounts), 'agent' = Standard.
+ * The oldest existing account becomes the Main account.
+ */
+async function upgrade(env: Env): Promise<void> {
+  const cols = await env.DB.prepare('PRAGMA table_info(agents)').all<{ name: string }>();
+  if (cols.results.some((c) => c.name === 'role')) return;
+  try {
+    await env.DB.batch([
+      env.DB.prepare("ALTER TABLE agents ADD COLUMN role TEXT NOT NULL DEFAULT 'agent'"),
+      env.DB.prepare("UPDATE agents SET role = 'owner' WHERE id = (SELECT MIN(id) FROM agents)"),
+    ]);
+  } catch (err) {
+    // Another instance added the column at the same moment.
+    if (!String(err).includes('duplicate column')) throw err;
+  }
+}
+
 let ready: Promise<void> | null = null;
 
 export function ensureSchema(env: Env): Promise<void> {
   if (!ready) {
-    ready = env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).then(
+    ready = env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql))).then(() => upgrade(env)).then(
       () => undefined,
       (err) => {
         ready = null; // try again on the next request

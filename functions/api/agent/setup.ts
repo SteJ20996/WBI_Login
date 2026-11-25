@@ -38,8 +38,8 @@ export const onRequestPost: Fn = async ({ env, request }) => {
   const now = Date.now();
   // Inserts only while the table is still empty, so two requests at once cannot both succeed.
   const res = await env.DB.prepare(
-    'INSERT INTO agents (email, name, password_hash, active, password_changed_at, created_at) ' +
-      'SELECT ?1, ?2, ?3, 1, ?4, ?4 WHERE NOT EXISTS (SELECT 1 FROM agents)',
+    "INSERT INTO agents (email, name, password_hash, active, password_changed_at, created_at, role) " +
+      "SELECT ?1, ?2, ?3, 1, ?4, ?4, 'owner' WHERE NOT EXISTS (SELECT 1 FROM agents)",
   )
     .bind(email, name, await hashPassword(password), now)
     .run();

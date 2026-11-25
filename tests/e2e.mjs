@@ -27,6 +27,37 @@ const tsStatements = [...schemaTs.matchAll(/^\s*"(CREATE [^"]+)",?$/gm)].map((m)
 assert.deepEqual(tsStatements, migration, 'functions/_lib/schema.ts differs from migrations/0001_init.sql');
 console.log('  ok  schema.ts matches migrations/0001_init.sql');
 
+// ---------- 1b. a database created by version 1 is upgraded in place ----------
+import { pbkdf2Sync, randomBytes } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+function legacyHash(password) {
+  const salt = randomBytes(16);
+  return `pbkdf2_sha256$100000$${salt.toString('base64')}$${pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('base64')}`;
+}
+{
+  const oldState = mkdtempSync(join(tmpdir(), 'wbi-v1-'));
+  const sql = join(oldState, 'v1.sql');
+  writeFileSync(sql, migration.join('\n') + `\nINSERT INTO agents (email, name, password_hash, active, created_at) VALUES ('old@example.com', 'Old Agent', '${legacyHash('old-long-password-1')}', 1, 1);\n`);
+  execFileSync('npx', ['wrangler', 'd1', 'execute', 'wbi-login', '--local', '--persist-to', oldState, '--file', sql], { cwd: root, stdio: 'ignore', env: { ...process.env, WRANGLER_SEND_METRICS: 'false', CI: '1' } });
+  const port = PORT + 1;
+  const srv = spawn('npx', ['wrangler', 'pages', 'dev', '--port', String(port), '--ip', '127.0.0.1', '--persist-to', oldState, '--binding', 'TURNSTILE_TEST_BYPASS=true'],
+    { cwd: root, env: { ...process.env, WRANGLER_SEND_METRICS: 'false', CI: '1' }, stdio: 'ignore', detached: true });
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    for (let i = 0; ; i++) { try { if ((await fetch(base + '/robots.txt')).ok) break; } catch {} if (i > 120) throw new Error('v1 server did not start'); await new Promise((r) => setTimeout(r, 500)); }
+    const login = await fetch(base + '/api/agent/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: base }, body: JSON.stringify({ email: 'old@example.com', password: 'old-long-password-1', turnstileToken: 'x' }) });
+    assert.equal(login.status, 200);
+    const me = await (await fetch(base + '/api/agent/me', { headers: { Cookie: login.headers.get('set-cookie').split(';')[0] } })).json();
+    assert.equal(me.role, 'owner', 'existing first agent should become the Main account');
+    console.log('  ok  a version-1 database is upgraded and its first agent becomes Main');
+  } finally {
+    try { process.kill(-srv.pid, 'SIGTERM'); } catch {}
+    await new Promise((r) => setTimeout(r, 800));
+    rmSync(oldState, { recursive: true, force: true });
+  }
+}
+
 // ---------- 2. start the local server ----------
 const state = mkdtempSync(join(tmpdir(), 'wbi-e2e-'));
 const server = spawn(
@@ -243,6 +274,69 @@ await step('change password, sign out, sign in with the new one', async () => {
   assert.equal((await call('/api/agent/login', { method: 'POST', who: 'agent', body: { email: 'kim@example.com', password: 'another-long-pass-2', turnstileToken: 'x' } })).status, 200);
 });
 
+const jar2 = { std: '', owner2: '' };
+async function as(who, path, opts = {}) {
+  const headers = { Origin: BASE };
+  if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (jar2[who]) headers.Cookie = jar2[who];
+  const res = await fetch(BASE + path, { method: opts.method || 'GET', headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) });
+  const set = res.headers.get('set-cookie'); if (set) jar2[who] = set.split(';')[0];
+  let data = {}; try { data = await res.json(); } catch {}
+  return { status: res.status, data };
+}
+let stdId;
+await step('Main account adds a Standard account; Standard cannot manage accounts', async () => {
+  assert.equal((await call('/api/agent/me', { who: 'agent' })).data.role, 'owner');
+  const add = await call('/api/agent/agents', { method: 'POST', who: 'agent', body: { name: 'Second Agent', email: 'Second@Example.com', role: 'agent', password: 'second-pass-123' } });
+  assert.equal(add.status, 200);
+  stdId = add.data.id;
+  assert.equal((await call('/api/agent/agents', { method: 'POST', who: 'agent', body: { name: 'Dup', email: 'second@example.com', role: 'agent', password: 'second-pass-123' } })).status, 409);
+  assert.equal((await as('std', '/api/agent/login', { method: 'POST', body: { email: 'second@example.com', password: 'second-pass-123', turnstileToken: 'x' } })).status, 200);
+  assert.equal((await as('std', '/api/agent/me')).data.role, 'agent');
+  assert.equal((await as('std', '/api/agent/accounts')).status, 200);
+  assert.equal((await as('std', '/api/agent/agents')).status, 403);
+  assert.equal((await as('std', '/api/agent/agents', { method: 'POST', body: { name: 'X', email: 'x@example.com', role: 'owner', password: 'xxxxxxxxxxxxxx' } })).status, 403);
+  const list = await call('/api/agent/agents', { who: 'agent' });
+  assert.equal(list.data.agents.length, 2);
+});
+await step('Main account cannot demote or switch off itself', async () => {
+  const me = (await call('/api/agent/agents', { who: 'agent' })).data.meId;
+  assert.equal((await call('/api/agent/agents/' + me, { method: 'PUT', who: 'agent', body: { name: 'Kim Dinh', email: 'kim@example.com', role: 'agent', active: true } })).status, 400);
+  assert.equal((await call('/api/agent/agents/' + me, { method: 'PUT', who: 'agent', body: { name: 'Kim Dinh', email: 'kim@example.com', role: 'owner', active: false } })).status, 400);
+});
+await step('change own sign-in email: needs the password, old email stops working', async () => {
+  assert.equal((await call('/api/agent/email', { method: 'POST', who: 'agent', body: { newEmail: 'stayforwork@example.com', password: 'wrong' } })).status, 400);
+  assert.equal((await call('/api/agent/email', { method: 'POST', who: 'agent', body: { newEmail: 'second@example.com', password: 'another-long-pass-2' } })).status, 409);
+  const ok = await call('/api/agent/email', { method: 'POST', who: 'agent', body: { newEmail: 'StayForWork@Example.com', password: 'another-long-pass-2' } });
+  assert.equal(ok.status, 200);
+  assert.equal(ok.data.email, 'stayforwork@example.com');
+  assert.equal((await call('/api/agent/me', { who: 'agent' })).data.email, 'stayforwork@example.com');
+  assert.equal((await call('/api/agent/login', { method: 'POST', body: { email: 'kim@example.com', password: 'another-long-pass-2', turnstileToken: 'x' } })).status, 401);
+  assert.equal((await call('/api/agent/login', { method: 'POST', who: 'agent', body: { email: 'stayforwork@example.com', password: 'another-long-pass-2', turnstileToken: 'x' } })).status, 200);
+});
+await step('password reset and sign-in off sign the other person out', async () => {
+  assert.equal((await call('/api/agent/agents/' + stdId, { method: 'PUT', who: 'agent', body: { name: 'Second Agent', email: 'second@example.com', role: 'agent', active: true, newPassword: 'reset-pass-4567' } })).status, 200);
+  assert.equal((await as('std', '/api/agent/me')).status, 401);
+  assert.equal((await as('std', '/api/agent/login', { method: 'POST', body: { email: 'second@example.com', password: 'reset-pass-4567', turnstileToken: 'x' } })).status, 200);
+  assert.equal((await call('/api/agent/agents/' + stdId, { method: 'PUT', who: 'agent', body: { name: 'Second Agent', email: 'second@example.com', role: 'agent', active: false } })).status, 200);
+  assert.equal((await as('std', '/api/agent/me')).status, 401);
+  assert.equal((await as('std', '/api/agent/login', { method: 'POST', body: { email: 'second@example.com', password: 'reset-pass-4567', turnstileToken: 'x' } })).status, 401);
+});
+await step('there is always at least one active Main account', async () => {
+  await call('/api/agent/agents/' + stdId, { method: 'PUT', who: 'agent', body: { name: 'Second Agent', email: 'second@example.com', role: 'owner', active: true } });
+  assert.equal((await as('owner2', '/api/agent/login', { method: 'POST', body: { email: 'second@example.com', password: 'reset-pass-4567', turnstileToken: 'x' } })).status, 200);
+  const first = (await call('/api/agent/agents', { who: 'agent' })).data.meId;
+  // The second Main account demotes the first one: allowed, one Main remains.
+  assert.equal((await as('owner2', '/api/agent/agents/' + first, { method: 'PUT', body: { name: 'Kim Dinh', email: 'stayforwork@example.com', role: 'agent', active: true } })).status, 200);
+  assert.equal((await as('owner2', '/api/agent/agents/' + stdId, { method: 'PUT', body: { name: 'Second Agent', email: 'second@example.com', role: 'agent', active: true } })).status, 400);
+  // Put things back: first account Main again (it was signed out by the role change).
+  assert.equal((await as('owner2', '/api/agent/agents/' + first, { method: 'PUT', body: { name: 'Kim Dinh', email: 'stayforwork@example.com', role: 'owner', active: true } })).status, 200);
+  assert.equal((await call('/api/agent/login', { method: 'POST', who: 'agent', body: { email: 'stayforwork@example.com', password: 'another-long-pass-2', turnstileToken: 'x' } })).status, 200);
+  const log = await call('/api/agent/audit', { who: 'agent' });
+  assert.ok(log.data.entries.some((e) => /changed the sign-in email to stayforwork@example.com/.test(e.detail)));
+  assert.ok(log.data.entries.some((e) => /role Main → Standard/.test(e.detail)));
+});
+
 // ---------- 4. pages in a real browser ----------
 const chrome = process.env.CHROME_PATH || ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].find((p) => existsSync(p));
 if (!chrome) {
@@ -274,7 +368,7 @@ if (!chrome) {
   });
   await step('agent page: sign in, 2,300-row table pages, edit dialog saves', async () => {
     await page.goto(BASE + '/agent/');
-    await page.fill('#ad-email', 'kim@example.com');
+    await page.fill('#ad-email', 'stayforwork@example.com');
     await page.fill('#ad-pass', 'another-long-pass-2');
     await page.click('#ad-btn');
     await page.waitForSelector('#rows tr[data-edit]');
@@ -291,6 +385,20 @@ if (!chrome) {
     await page.fill('#q', 'client29');
     await page.waitForFunction(() => /all 11 matching/.test(document.getElementById('totals').textContent));
     await page.screenshot({ path: join(out, 'agent-table.png'), fullPage: true });
+  });
+  await step('agent page: accounts dialog lists both accounts; add form opens', async () => {
+    await page.click('#ag-open');
+    await page.waitForFunction(() => document.querySelectorAll('#ag-rows tr').length === 2);
+    await page.click('#ag-add');
+    assert.equal(await page.isVisible('#ag-form'), true);
+    await page.fill('#ag-name', 'Third Agent'); await page.fill('#ag-email', 'third@example.com'); await page.fill('#ag-pass', 'third-pass-1234');
+    await page.click('#ag-save');
+    await page.waitForFunction(() => document.querySelectorAll('#ag-rows tr').length === 3);
+    await page.screenshot({ path: join(out, 'agent-accounts.png') });
+    await page.click('#ag-close');
+    await page.click('#em-open');
+    assert.equal(await page.textContent('#em-current'), 'stayforwork@example.com');
+    await page.click('#em-cancel');
   });
   await step('no script errors or blocked resources on either page', async () => {
     assert.deepEqual(problems, []);

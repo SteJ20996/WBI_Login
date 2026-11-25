@@ -126,6 +126,16 @@ Then apply them: *Deployments* → the latest Production deployment → *⋯* �
 2. Enter the `SETUP_TOKEN` from Step 5, the agent's name, email, and a password of at least 12 characters.
 3. Sign in with that email and password.
 4. The setup page closes for good once an account exists. You may now delete the `SETUP_TOKEN` secret.
+   This first account is the **Main** account.
+
+More accounts and changes later, all inside the portal:
+- **Change email** / **Change password** (top right): each person changes their own sign-in email or
+  password. Changing the email asks for the password.
+- **Agent/Financial Specialist accounts** (Main accounts only): *+ Add account* with a name, email, role
+  and a first password (share it privately; the person changes it after signing in). *Edit* changes
+  another person's name, email or role, turns their sign-in off, or sets a new password.
+  Roles: **Main** can also manage these accounts; **Standard** manages client accounts only.
+  There is always at least one active Main account, and nobody can switch off or demote themselves.
 5. **Free-plan check:** sign out and sign in again as the agent 4 or 5 times, and once use
    *Change password*. If any attempt shows **Error 1102** ("Worker exceeded resource limits") or
    "Sign-in is temporarily unavailable", switch to Workers Paid (Step 0.5) and try again.

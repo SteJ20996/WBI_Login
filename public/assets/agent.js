@@ -10,7 +10,7 @@
 
   function signedOut(message) {
     if (ui.stopIdle) { ui.stopIdle(); ui.stopIdle = null; }
-    ["acct-dlg", "import-dlg", "pw-dlg"].forEach(function (id) { if ($(id).open) $(id).close(); });
+    ["acct-dlg", "import-dlg", "pw-dlg", "em-dlg", "ag-dlg"].forEach(function (id) { if ($(id).open) $(id).close(); });
     ui.me = null;
     showSignin(message || "");
   }
@@ -78,8 +78,9 @@
   /* ---------- back office ---------- */
   function showOffice() {
     $("app").innerHTML =
-      '<div class="admin-bar"><span class="small muted">' + lock + ' Signed in as <strong>' + esc(ui.me.email) + '</strong></span>' +
-        '<div class="actions"><button class="btn secondary small" type="button" id="pw-open">Change password</button><button class="btn secondary small" type="button" id="admin-logout">Sign out</button></div></div>' +
+      '<div class="admin-bar"><span class="small muted">' + lock + ' Signed in as <strong id="me-email">' + esc(ui.me.email) + '</strong></span>' +
+        '<div class="actions">' + (ui.me.role === "owner" ? '<button class="btn secondary small" type="button" id="ag-open">Agent/Financial Specialist accounts</button>' : "") +
+        '<button class="btn secondary small" type="button" id="em-open">Change email</button><button class="btn secondary small" type="button" id="pw-open">Change password</button><button class="btn secondary small" type="button" id="admin-logout">Sign out</button></div></div>' +
       '<section class="card section" aria-labelledby="tbl-title">' +
         '<div class="section-head"><div><h2 id="tbl-title">Client accounts</h2><p class="muted small" id="count"></p></div>' +
           '<div class="tools"><input type="search" id="q" placeholder="Search account #, name, or email" aria-label="Search account #, name, or email">' +
@@ -98,6 +99,8 @@
     });
     $("log-box").addEventListener("toggle", function () { if ($("log-box").open) loadLog(); });
     $("pw-open").addEventListener("click", openPassword);
+    $("em-open").addEventListener("click", openEmail);
+    if ($("ag-open")) $("ag-open").addEventListener("click", openAgents);
     $("admin-logout").addEventListener("click", function () { signOut(); });
     $("add-client").addEventListener("click", function () { openAccount(null); });
     $("import-open").addEventListener("click", openImport);
@@ -282,6 +285,82 @@
     $("pw-dlg").showModal();
   }
 
+  /* ---------- change own sign-in email ---------- */
+  function openEmail() {
+    $("em-current").textContent = ui.me.email;
+    $("em-new").value = ""; $("em-pass").value = ""; $("em-err").hidden = true;
+    $("em-dlg").showModal();
+  }
+  $("em-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var err = function (m) { $("em-err").textContent = m; $("em-err").hidden = false; };
+    var email = $("em-new").value.trim();
+    if (!email || !$("em-pass").value) return err("Enter the new email and your password.");
+    W.api("/api/agent/email", { method: "POST", body: { newEmail: email, password: $("em-pass").value } }).then(function (res) {
+      if (!guard(res)) return;
+      if (!res.ok) { $("em-pass").value = ""; return err(res.data.message || "The email could not be changed."); }
+      ui.me.email = res.data.email;
+      if ($("me-email")) $("me-email").textContent = ui.me.email;
+      $("em-dlg").close(); refreshLog();
+      W.toast("Sign-in email changed to " + ui.me.email + ". Use it next time you sign in.");
+    });
+  });
+
+  /* ---------- Agent/Financial Specialist accounts (Main accounts only) ---------- */
+  var agents = { list: [], meId: null, editing: null };
+  function openAgents() {
+    $("ag-form").hidden = true;
+    $("ag-dlg").showModal();
+    loadAgents();
+  }
+  function loadAgents() {
+    W.api("/api/agent/agents").then(function (res) {
+      if (!guard(res)) return;
+      if (!res.ok) { $("ag-rows").innerHTML = '<tr><td colspan="6" class="empty">' + esc(res.data.message || "The list could not load.") + "</td></tr>"; return; }
+      agents.list = res.data.agents; agents.meId = res.data.meId;
+      $("ag-rows").innerHTML = agents.list.map(function (a) {
+        return '<tr><td>' + esc(a.email) + (a.id === agents.meId ? ' <span class="small muted">(you)</span>' : "") + '</td><td>' + esc(a.name) + '</td>' +
+          '<td>' + (a.role === "owner" ? "Main" : "Standard") + '</td>' +
+          '<td>' + (a.active ? '<span class="pill good">Active</span>' : '<span class="pill bad">Off</span>') + '</td>' +
+          '<td class="small">' + (a.lastLoginAt ? esc(W.stamp(a.lastLoginAt)) : '<span class="muted">Never</span>') + '</td>' +
+          '<td>' + (a.id === agents.meId ? "" : '<button class="btn secondary small" type="button" data-agent="' + a.id + '">Edit</button>') + '</td></tr>';
+      }).join("");
+    });
+  }
+  function openAgentForm(a) {
+    agents.editing = a ? a.id : null;
+    $("ag-form-title").textContent = a ? "Edit " + a.email : "New account";
+    $("ag-name").value = a ? a.name : "";
+    $("ag-email").value = a ? a.email : "";
+    $("ag-role").value = a ? a.role : "agent";
+    $("ag-active").checked = a ? a.active : true;
+    $("ag-pass").value = "";
+    $("ag-pass-label").textContent = a ? "New password (leave empty to keep the current one)" : "First password (at least 12 characters)";
+    $("ag-note").textContent = a ? "Changing the email, role, password, or turning off sign-in signs this person out on every device." : "Give the first password to the person privately. They can change it after signing in with Change password.";
+    $("ag-err").hidden = true;
+    $("ag-form").hidden = false;
+    $("ag-name").focus();
+  }
+  $("ag-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var err = function (m) { $("ag-err").textContent = m; $("ag-err").hidden = false; };
+    var body = { name: $("ag-name").value.trim(), email: $("ag-email").value.trim(), role: $("ag-role").value, active: $("ag-active").checked };
+    var pass = $("ag-pass").value;
+    if (agents.editing) { if (pass) body.newPassword = pass; } else body.password = pass;
+    if (!body.name || !body.email) return err("Enter a name and an email.");
+    if (!agents.editing && pass.length < 12) return err("Use a first password of at least 12 characters.");
+    if (agents.editing && pass && pass.length < 12) return err("Use a new password of at least 12 characters, or leave it empty.");
+    var save = $("ag-save"); save.disabled = true;
+    var req = agents.editing ? W.api("/api/agent/agents/" + agents.editing, { method: "PUT", body: body }) : W.api("/api/agent/agents", { method: "POST", body: body });
+    req.then(function (res) {
+      save.disabled = false;
+      if (!guard(res)) return;
+      if (!res.ok) return err(res.data.message || "The account could not be saved.");
+      $("ag-form").hidden = true; loadAgents(); refreshLog();
+      W.toast(agents.editing ? "Account updated." : "Account added. Share the first password privately.");
+    });
+  });
+
   /* ---------- events ---------- */
   document.addEventListener("click", function (e) {
     var el = e.target.closest("button, tr[data-edit]");
@@ -291,6 +370,11 @@
     if (el.id === "af-cancel") return $("acct-dlg").close();
     if (el.id === "af-delete") return deleteAccount();
     if (el.id === "pw-cancel") return $("pw-dlg").close();
+    if (el.id === "em-cancel") return $("em-dlg").close();
+    if (el.id === "ag-close") return $("ag-dlg").close();
+    if (el.id === "ag-add") return openAgentForm(null);
+    if (el.id === "ag-cancel") { $("ag-form").hidden = true; return; }
+    if (el.dataset.agent) { var a = agents.list.find(function (x) { return x.id === Number(el.dataset.agent); }); if (a) openAgentForm(a); return; }
     if (el.id === "im-close") return $("import-dlg").close();
     if (el.id === "im-template") {
       var blob = new Blob(["Account #,Client name,Email,Start date,Total deposit,Interest earned,Status\r\nWBI-12345678-01,Jane Sample,jane@example.com,01/15/2024,50000.00,1250.75,Active\r\n"], { type: "text/csv" });

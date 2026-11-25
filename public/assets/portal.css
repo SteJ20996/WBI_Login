@@ -140,6 +140,11 @@ table.data tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 
 dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(560px, calc(100vw - 32px)); background: var(--surface); color: var(--ink); }
 dialog::backdrop { background: rgba(10, 20, 40, .45); }
+dialog.wide { width: min(820px, calc(100vw - 32px)); }
+table.data.compact { min-width: 600px; }
+.field select { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); width: 100%; }
+.field.full { grid-column: 1 / -1; }
+#ag-form { margin-top: 4px; }
 .dlg { padding: 22px; display: grid; gap: 14px; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
 .switch { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }

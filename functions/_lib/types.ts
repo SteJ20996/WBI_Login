@@ -28,10 +28,13 @@ export interface ClientRow {
   last_login_at: number | null;
 }
 
+export type AgentRole = 'owner' | 'agent';
+
 export interface AgentRow {
   id: number;
   email: string;
   name: string;
   password_hash: string;
   active: number;
+  role: AgentRole;
 }

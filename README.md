@@ -6,7 +6,9 @@ Private client portal for Wealth Builder & Insurances at **wealthbuilderins.com*
   then see their account number, start date, total deposit, interest earned and account balance.
 - **Agent/Financial Specialist** (`/agent/`) signs in with email and password, then views and edits every
   account in a table (50 per page, search, add, edit, deactivate, delete, CSV import and download,
-  change log). Changes show up for the client on their next page load.
+  change log). Changes show up for the client on their next page load. Each agent can change their own
+  sign-in email and password; **Main** accounts can add more Agent/Financial Specialist accounts
+  (Main or Standard), edit them, reset their passwords, or turn their sign-in off.
 - The site is kept out of search engines (`robots.txt`, `X-Robots-Tag`, `noindex`).
 
 **To launch it on Cloudflare, follow [docs/DEPLOY.md](docs/DEPLOY.md).**

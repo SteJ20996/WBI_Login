@@ -69,6 +69,49 @@
   </div>
 </dialog>
 
+<dialog id="em-dlg" aria-labelledby="em-title">
+  <form class="dlg" id="em-form" method="dialog" novalidate>
+    <h2 id="em-title">Change sign-in email</h2>
+    <p class="small muted">Current sign-in email: <strong id="em-current"></strong></p>
+    <div class="field"><label for="em-new">New sign-in email</label><input id="em-new" type="email" autocomplete="username"></div>
+    <div class="field"><label for="em-pass">Your password</label><input id="em-pass" type="password" autocomplete="current-password"></div>
+    <div class="alert bad" id="em-err" role="alert" hidden></div>
+    <div class="dlg-actions">
+      <div class="right">
+        <button type="button" class="btn secondary" id="em-cancel">Cancel</button>
+        <button type="submit" class="btn">Change email</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="ag-dlg" class="wide" aria-labelledby="ag-title">
+  <div class="dlg">
+    <div class="section-head"><h2 id="ag-title">Agent/Financial Specialist accounts</h2><button type="button" class="btn small" id="ag-add">+ Add account</button></div>
+    <p class="small muted">Main accounts can add and manage these accounts. Standard accounts manage client accounts only. Each person signs in with their own email and password.</p>
+    <div class="table-wrap"><table class="data compact"><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead><tbody id="ag-rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+    <form class="card section" id="ag-form" hidden novalidate>
+      <h3 id="ag-form-title">New account</h3>
+      <div class="form-grid">
+        <div class="field"><label for="ag-name">Name</label><input id="ag-name" autocomplete="off" maxlength="120"></div>
+        <div class="field"><label for="ag-email">Sign-in email</label><input id="ag-email" type="email" autocomplete="off"></div>
+        <div class="field"><label for="ag-role">Role</label><select id="ag-role"><option value="agent">Standard (client accounts only)</option><option value="owner">Main (can also manage these accounts)</option></select></div>
+        <div class="field end"><label class="switch" for="ag-active"><input id="ag-active" type="checkbox" checked>Can sign in</label></div>
+        <div class="field full"><label for="ag-pass" id="ag-pass-label">First password (at least 12 characters)</label><input id="ag-pass" type="password" autocomplete="new-password"></div>
+      </div>
+      <p class="small muted" id="ag-note">Give the first password to the person privately. They can change it after signing in with Change password.</p>
+      <div class="alert bad" id="ag-err" role="alert" hidden></div>
+      <div class="dlg-actions">
+        <div class="right">
+          <button type="button" class="btn secondary" id="ag-cancel">Cancel</button>
+          <button type="submit" class="btn" id="ag-save">Save</button>
+        </div>
+      </div>
+    </form>
+    <div class="dlg-actions"><div class="right"><button type="button" class="btn secondary" id="ag-close">Close</button></div></div>
+  </div>
+</dialog>
+
 <dialog id="pw-dlg" aria-labelledby="pw-title">
   <form class="dlg" id="pw-form" method="dialog" novalidate>
     <h2 id="pw-title">Change password</h2>
